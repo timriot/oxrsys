@@ -11,7 +11,9 @@ Current responsibilities:
 - detect adb devices and configure Quest USB reverse mappings on ports `9944`, `9945`, and `9946`
 - show runtime activity and streaming stats from `runtime_status.json`
 - install and register the user OpenXR runtime on Linux through `${XDG_CONFIG_HOME:-~/.config}/openxr/1/active_runtime.json`
-- host the shared Qt simulator widget from the Developer tab
+- launch apps with either the installed runtime manifest or the manually selected manifest
+- host the shared Qt simulator widget from the Developer tab, including H.265 video preview when
+  FFmpeg is available and mouse-driven synthetic head tracking
 
 Build with the top-level CMake project:
 
@@ -22,6 +24,12 @@ ctest --test-dir build --output-on-failure
 ```
 
 On Linux, `OXRSYS_BUILD_QT_FRONTENDS=AUTO` enables the Qt apps when Qt6 Core/Widgets/Network are found.
+
+The Settings tab separates registration from launch selection. `Update Registration`
+writes `${XDG_CONFIG_HOME:-~/.config}/openxr/1/active_runtime.json` to the selected
+manifest. The `Use installed runtime for launches` checkbox controls whether Home-launched
+apps prefer the installed copy under `${XDG_DATA_HOME:-~/.local/share}/oxrsys/runtime/current`
+or use the manifest selected in the registration field.
 
 Platform behavior:
 

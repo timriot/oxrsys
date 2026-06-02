@@ -15,12 +15,15 @@ The Qt simulator shared code lives in `clients/Qt/oxrsys-simulator-shared` and i
 - `clients/Qt/oxrsys-simulator`: standalone simulator shell
 - `clients/Qt/oxrsys-home`: embedded Developer tab simulator
 
-The viewer exposes two viewing modes:
+The Apple viewer exposes two viewing modes:
 
 - `Simulator`: mono preview with simulation controls
 - `StereoView`: stereo side-by-side presentation for headset-style viewing on iOS
 
 On macOS, the app is primarily used in `Simulator` mode. On iOS, the same target can switch between `Simulator` and `StereoView` from the in-app settings sheet. The macOS Home can also open `OXRSysSimulatorView` from its Developer tab when Developer Mode is enabled.
+
+The Qt simulator is a single `Simulator` mode. It can run as the standalone
+`oxrsys-simulator` app or inside the Qt Home Developer tab.
 
 ## How Simulator Mode Works
 
@@ -32,6 +35,11 @@ The viewer connects to the runtime as a streaming client, using the same UDP pro
 - Receives encoded video frames and decodes them locally
 - Captures keyboard and mouse input and sends simulated tracking data to the runtime
 - Displays a single-eye preview across the full screen
+
+The Qt simulator uses the same UDP discovery, video, control, and tracking ports. On Linux with
+FFmpeg development libraries available at build time, the Qt widget decodes the H.265 stream into
+its preview panel. If no decoded frame is available yet, it shows a synthetic pose preview using the
+same simulated head pose that is sent to the runtime.
 
 The settings sheet also lets you:
 
@@ -57,7 +65,7 @@ The macOS app target is App Store-ready for upload with a generated `LSApplicati
 and server network entitlements enabled because discovery, video receive, tracking, and control all
 use the streaming protocol.
 
-## Controls
+## Apple Simulator Controls
 
 | Input | Action |
 | --- | --- |
@@ -73,9 +81,24 @@ use the streaming protocol.
 | `Escape` | Menu button |
 | `T` | Toggle controller mode or hand tracking mode |
 
+## Qt Simulator Controls
+
+| Input | Action |
+| --- | --- |
+| Right mouse button in the preview | Capture or release mouse look |
+| Mouse move while captured, or left-drag | Head look |
+| Mouse wheel | Move forward or backward |
+| `Z Q S D` or `W A S D` | Move head |
+| Arrow keys | Alternate head look |
+| `R / E` | Roll head |
+| `F / G` | Left or right grip |
+| `Escape` | Release mouse capture |
+
 ## Limitations
 
 - Pose quality does not match real headset tracking.
 - Simulator timing does not replace real streaming latency measurements.
+- The Qt video preview currently requires complete non-FEC UDP frame reassembly; missing video
+  packets can drop a frame instead of requesting retransmission.
 - Optical characteristics, compositor behavior, and headset-specific runtime behavior still require device validation.
 - `StereoView` is a side-by-side viewer mode, not a full optical distortion pipeline.

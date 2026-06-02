@@ -34,6 +34,7 @@ FetchContent_Declare(
     GIT_TAG v1.15.3
     GIT_SHALLOW ON
 )
+set(SPDLOG_BUILD_PIC ON CACHE BOOL "Build spdlog with position independent code" FORCE)
 
 # glm
 FetchContent_Declare(

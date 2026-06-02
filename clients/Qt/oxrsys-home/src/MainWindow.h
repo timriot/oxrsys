@@ -48,6 +48,7 @@ private:
     void refreshDeveloper();
     void updateDeveloperTab();
     void setPill(QLabel* label, const QString& text, const QColor& color);
+    void revealPath(const QString& path, const QString& label);
     void chooseLauncherApp();
     void chooseRuntimeManifest();
     void updateConfigFromControls();
@@ -81,6 +82,8 @@ private:
     QLabel* bundledRuntimePathLabel_ = nullptr;
     QPushButton* installRuntimeButton_ = nullptr;
     QPushButton* useInstalledManifestButton_ = nullptr;
+    QPushButton* revealInstalledRuntimeButton_ = nullptr;
+    QCheckBox* preferInstalledRuntimeCheckBox_ = nullptr;
     QLineEdit* runtimeManifestLineEdit_ = nullptr;
     QLabel* registrationFileLabel_ = nullptr;
     QLabel* currentRuntimeTargetLabel_ = nullptr;

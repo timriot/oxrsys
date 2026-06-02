@@ -27,6 +27,15 @@ bool Contains(const std::string& text, const std::string& needle)
     return text.find(needle) != std::string::npos;
 }
 
+std::filesystem::path RuntimeStatusPathForHome(const std::filesystem::path& home)
+{
+#if defined(__APPLE__)
+    return home / "Library/Application Support/OXRSys/runtime_status.json";
+#else
+    return home / ".local/state/oxrsys/runtime_status.json";
+#endif
+}
+
 } // namespace
 
 TEST_CASE("RuntimeStatus writes streaming stats only while streaming", "[runtime-status]")
@@ -74,8 +83,7 @@ TEST_CASE("RuntimeStatus writes streaming stats only while streaming", "[runtime
     stats.pendingDepthMax = 1;
     RuntimeStatus::SetStreamingStats(stats);
 
-    const auto statusPath =
-        home / "Library/Application Support/OXRSys/runtime_status.json";
+    const auto statusPath = RuntimeStatusPathForHome(home);
     const std::string streamingStatus = ReadFile(statusPath);
 
     CHECK(Contains(streamingStatus, "\"state\": \"streaming\""));

@@ -46,6 +46,19 @@ void makeExecutable(const QString& path)
                               QFile::ReadOther | QFile::ExeOther);
 }
 
+bool containsCleanPath(const QStringList& paths, const QString& expected)
+{
+    const QString cleanExpected = QDir::cleanPath(expected);
+    for (const QString& path : paths)
+    {
+        if (QDir::cleanPath(path) == cleanExpected)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void testServerConfigRoundTrip()
 {
     const ServerConfig parsed = ServerConfig::parse(R"(
@@ -79,6 +92,86 @@ void testRuntimeManifestGeneration()
            "Expected manifest format version");
     expect(runtime.value("library_path").toString().endsWith("liboxrsys-runtime.so"),
            "Expected runtime library path");
+}
+
+void testRuntimeRegistration()
+{
+#if defined(Q_OS_LINUX)
+    QTemporaryDir temporaryDir;
+    expect(temporaryDir.isValid(), "Expected temporary directory");
+
+    const QString runtimeLibraryPath = QDir(temporaryDir.path()).filePath("liboxrsys-runtime.so");
+    const QString manifestPath = QDir(temporaryDir.path()).filePath("oxrsys-runtime.json");
+    writeFile(runtimeLibraryPath, "runtime");
+    writeFile(manifestPath, RuntimeManager::runtimeManifestJson(runtimeLibraryPath).toUtf8());
+
+    HomePaths paths;
+    paths.activeRuntimeDirectory = QDir(temporaryDir.path()).filePath("openxr/1");
+    paths.activeRuntimePath = QDir(paths.activeRuntimeDirectory).filePath("active_runtime.json");
+    paths.installedRuntimeDirectory = QDir(temporaryDir.path()).filePath("runtime/current");
+    paths.installedRuntimeManifestPath =
+        QDir(paths.installedRuntimeDirectory).filePath(runtimeManifestFileName());
+
+    RuntimeManager manager(paths);
+    QString error;
+    expect(manager.registerRuntimeManifest(manifestPath, &error),
+           "Expected runtime registration: " + error);
+
+    const RuntimeRegistrationStatus status = manager.registrationStatus();
+    expect(status.activeRuntimeExists, "Expected active runtime registration");
+    expect(QFileInfo(paths.activeRuntimePath).exists() ||
+               !QFileInfo(paths.activeRuntimePath).symLinkTarget().isEmpty(),
+           "Expected active runtime file");
+
+    const QString linkTarget = QFileInfo(paths.activeRuntimePath).symLinkTarget();
+    if (!linkTarget.isEmpty())
+    {
+        expect(normalizedPath(linkTarget) == normalizedPath(manifestPath),
+               "Expected active runtime symlink target");
+        expect(normalizedPath(status.activeRuntimeTarget) == normalizedPath(manifestPath),
+               "Expected registration status target");
+    }
+
+    expect(manager.unregisterRuntime(&error), "Expected runtime unregistration: " + error);
+    expect(!manager.registrationStatus().activeRuntimeExists,
+           "Expected active runtime registration to be removed");
+#endif
+}
+
+void testRuntimeLaunchManifestPreference()
+{
+    QTemporaryDir temporaryDir;
+    expect(temporaryDir.isValid(), "Expected temporary directory");
+
+    const QString selectedLibraryPath = QDir(temporaryDir.path()).filePath("selected/liboxrsys-runtime.so");
+    const QString selectedManifestPath = QDir(temporaryDir.path()).filePath("selected/oxrsys-runtime.json");
+    const QString installedLibraryPath = QDir(temporaryDir.path()).filePath("installed/liboxrsys-runtime.so");
+    const QString installedManifestPath = QDir(temporaryDir.path()).filePath("installed/oxrsys-runtime.json");
+
+    writeFile(selectedLibraryPath, "selected");
+    writeFile(selectedManifestPath, RuntimeManager::runtimeManifestJson(selectedLibraryPath).toUtf8());
+    writeFile(installedLibraryPath, "installed");
+    writeFile(installedManifestPath, RuntimeManager::runtimeManifestJson(installedLibraryPath).toUtf8());
+
+    HomePaths paths;
+    paths.installedRuntimeDirectory = QFileInfo(installedLibraryPath).absolutePath();
+    paths.installedRuntimeManifestPath = installedManifestPath;
+
+    RuntimeManager manager(paths);
+    expect(normalizedPath(manager.activeLaunchRuntimeManifestPath(selectedManifestPath, false)) ==
+               normalizedPath(selectedManifestPath),
+           "Expected selected manifest when installed runtime is not preferred");
+    expect(normalizedPath(manager.activeLaunchRuntimeManifestPath(selectedManifestPath, true)) ==
+               normalizedPath(installedManifestPath),
+           "Expected installed manifest when installed runtime is preferred");
+}
+
+void testRuntimeBuildDirectoryCandidates()
+{
+    const QString appDirRuntime =
+        QDir(QCoreApplication::applicationDirPath()).filePath("../../../runtime");
+    expect(containsCleanPath(runtimeBuildDirectoryCandidates(), appDirRuntime),
+           "Expected top-level build runtime candidate");
 }
 
 void testAdbParsing()
@@ -236,6 +329,9 @@ int main(int argc, char** argv)
     {
         testServerConfigRoundTrip();
         testRuntimeManifestGeneration();
+        testRuntimeRegistration();
+        testRuntimeLaunchManifestPreference();
+        testRuntimeBuildDirectoryCandidates();
         testAdbParsing();
         testRuntimeActivityParsing();
         testDesktopInspection();

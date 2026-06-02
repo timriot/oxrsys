@@ -24,7 +24,8 @@ The Home app shows a main-window runtime activity summary from
 transport, connected device family, active OpenXR application, and WiFi/USB transport readiness.
 The Home app can enable a Developer tab from its Settings tab, open the macOS simulator in a
 same-process window backed by the shared `OXRSysSimulator` Swift package, and show live runtime
-streaming statistics from the existing telemetry path.
+streaming statistics from the existing telemetry path. The Qt Home Developer tab hosts the shared
+Qt simulator widget with UDP video preview and mouse-driven synthetic head tracking.
 As of March 17, 2026, the pinned non-interactive OpenXR-CTS baseline is fully green locally:
 63 passed, 36 skipped, 0 failed.
 

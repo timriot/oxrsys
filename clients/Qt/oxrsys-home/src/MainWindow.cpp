@@ -640,17 +640,18 @@ QWidget* MainWindow::buildSettingsTab()
     auto* installButtons = new QVBoxLayout();
     installRuntimeButton_ = iconButton(installBox, QStyle::SP_ArrowDown, "Install and Register Runtime");
     useInstalledManifestButton_ = iconButton(installBox, QStyle::SP_DialogApplyButton, "Use Installed Manifest");
-    auto* revealInstalledButton = iconButton(installBox, QStyle::SP_DirOpenIcon, "Reveal Installed Runtime");
+    revealInstalledRuntimeButton_ =
+        iconButton(installBox, QStyle::SP_DirOpenIcon, "Reveal Installed Runtime");
     connect(installRuntimeButton_, &QPushButton::clicked,
             model_, &HomeModel::installBundledRuntimeAndRegister);
     connect(useInstalledManifestButton_, &QPushButton::clicked,
             model_, &HomeModel::useInstalledRuntimeManifest);
-    connect(revealInstalledButton, &QPushButton::clicked, this, [this]() {
-        revealInFileManager(model_->runtimeInstallStatus().installedManifestPath);
+    connect(revealInstalledRuntimeButton_, &QPushButton::clicked, this, [this]() {
+        revealPath(model_->runtimeInstallStatus().installedManifestPath, "installed runtime");
     });
     installButtons->addWidget(installRuntimeButton_);
     installButtons->addWidget(useInstalledManifestButton_);
-    installButtons->addWidget(revealInstalledButton);
+    installButtons->addWidget(revealInstalledRuntimeButton_);
     installButtons->addStretch();
     installTop->addLayout(installButtons);
     installLayout->addLayout(installTop);
@@ -658,6 +659,11 @@ QWidget* MainWindow::buildSettingsTab()
     bundledRuntimePathLabel_ = elidedSecondaryLabel(installBox);
     installLayout->addWidget(installedRuntimePathLabel_);
     installLayout->addWidget(bundledRuntimePathLabel_);
+    preferInstalledRuntimeCheckBox_ =
+        new QCheckBox("Use installed runtime for launches", installBox);
+    connect(preferInstalledRuntimeCheckBox_, &QCheckBox::toggled,
+            model_, &HomeModel::setPreferInstalledRuntimeForLaunches);
+    installLayout->addWidget(preferInstalledRuntimeCheckBox_);
     layout->addWidget(installBox);
 
     auto* registrationBox = new QGroupBox("Runtime Registration", content);
@@ -671,7 +677,7 @@ QWidget* MainWindow::buildSettingsTab()
     });
     connect(browseButton, &QPushButton::clicked, this, &MainWindow::chooseRuntimeManifest);
     connect(revealButton, &QPushButton::clicked, this, [this]() {
-        revealInFileManager(model_->runtimeManifestPath());
+        revealPath(model_->runtimeManifestPath(), "runtime manifest");
     });
     manifestRow->addWidget(runtimeManifestLineEdit_, 1);
     manifestRow->addWidget(browseButton);
@@ -697,7 +703,10 @@ QWidget* MainWindow::buildSettingsTab()
         model_->refreshRuntimeStatus();
         model_->refreshRuntimeInstallStatus();
     });
-    connect(registerRuntimeButton_, &QPushButton::clicked, model_, &HomeModel::registerRuntime);
+    connect(registerRuntimeButton_, &QPushButton::clicked, this, [this]() {
+        model_->setRuntimeManifestPath(runtimeManifestLineEdit_->text());
+        model_->registerRuntime();
+    });
     connect(unregisterRuntimeButton_, &QPushButton::clicked, model_, &HomeModel::unregisterRuntime);
     registrationButtons->addWidget(refreshButton);
     registrationButtons->addStretch();
@@ -793,7 +802,7 @@ QWidget* MainWindow::buildStreamingTab()
         {
             model_->saveStructuredConfig();
         }
-        revealInFileManager(model_->paths().configFilePath);
+        revealPath(model_->paths().configFilePath, "runtime configuration");
     });
     configButtons->addWidget(saveButton);
     configButtons->addWidget(reloadButton);
@@ -1038,6 +1047,13 @@ void MainWindow::refreshSettings()
     installRuntimeButton_->setText(runtimeInstallButtonTitle(install));
     installRuntimeButton_->setEnabled(supportsRuntimeInstallAndRegistration() && install.bundledRuntimeExists);
     useInstalledManifestButton_->setEnabled(install.installedManifestExists);
+    revealInstalledRuntimeButton_->setEnabled(install.installedRuntimeExists ||
+                                              install.installedManifestExists);
+    preferInstalledRuntimeCheckBox_->blockSignals(true);
+    preferInstalledRuntimeCheckBox_->setChecked(model_->preferInstalledRuntimeForLaunches());
+    preferInstalledRuntimeCheckBox_->blockSignals(false);
+    preferInstalledRuntimeCheckBox_->setEnabled(install.installedRuntimeExists &&
+                                                install.installedManifestExists);
 
     runtimeManifestLineEdit_->blockSignals(true);
     runtimeManifestLineEdit_->setText(model_->runtimeManifestPath());
@@ -1152,6 +1168,22 @@ void MainWindow::setPill(QLabel* label, const QString& text, const QColor& color
         .arg(color.red())
         .arg(color.green())
         .arg(color.blue()));
+}
+
+void MainWindow::revealPath(const QString& path, const QString& label)
+{
+    if (path.isEmpty())
+    {
+        QMessageBox::warning(this, "OXRSys Home",
+                             QString("No %1 path is selected.").arg(label));
+        return;
+    }
+
+    if (!revealInFileManager(path))
+    {
+        QMessageBox::warning(this, "OXRSys Home",
+                             QString("Could not reveal the %1:\n%2").arg(label, path));
+    }
 }
 
 void MainWindow::chooseLauncherApp()

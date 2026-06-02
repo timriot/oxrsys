@@ -65,16 +65,22 @@ QString RuntimeManager::activeRuntimeTarget() const
     return registrationStatus().activeRuntimeTarget;
 }
 
-QString RuntimeManager::activeLaunchRuntimeManifestPath(const QString& selectedManifestPath) const
+QString RuntimeManager::activeLaunchRuntimeManifestPath(const QString& selectedManifestPath,
+                                                        bool preferInstalledRuntime) const
 {
     const RuntimeInstallStatus status = installStatus();
+    const QFileInfo selected(selectedManifestPath);
+    if (!preferInstalledRuntime && selected.isFile())
+    {
+        return selected.absoluteFilePath();
+    }
     if (status.installedRuntimeExists && status.installedManifestExists)
     {
         return status.installedManifestPath;
     }
-    if (QFileInfo(selectedManifestPath).isFile())
+    if (selected.isFile())
     {
-        return QFileInfo(selectedManifestPath).absoluteFilePath();
+        return selected.absoluteFilePath();
     }
     return defaultRuntimeManifestPath();
 }
@@ -101,8 +107,26 @@ bool RuntimeManager::registerRuntimeManifest(const QString& manifestPath, QStrin
         return false;
     }
 
-    QDir().mkpath(paths_.activeRuntimeDirectory);
-    QFile::remove(paths_.activeRuntimePath);
+    if (!QDir().mkpath(paths_.activeRuntimeDirectory))
+    {
+        if (errorMessage != nullptr)
+        {
+            *errorMessage = "Failed to create " + paths_.activeRuntimeDirectory;
+        }
+        return false;
+    }
+
+    const QFileInfo active(paths_.activeRuntimePath);
+    if ((active.exists() || !active.symLinkTarget().isEmpty()) &&
+        !QFile::remove(paths_.activeRuntimePath))
+    {
+        if (errorMessage != nullptr)
+        {
+            *errorMessage = "Failed to replace " + paths_.activeRuntimePath;
+        }
+        return false;
+    }
+
     if (!QFile::link(manifest.absoluteFilePath(), paths_.activeRuntimePath) &&
         !QFile::copy(manifest.absoluteFilePath(), paths_.activeRuntimePath))
     {

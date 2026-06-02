@@ -6,12 +6,12 @@ thirdparty/
 # --- Build & Binary Directories ---
 build/
 build_*/
+build-*/
 bin/
 lib/
 out/
 cmake-build-*/
 _deps/
-build-release/
 
 # --- CMake Generated Files ---
 CMakeCache.txt
@@ -26,6 +26,8 @@ install_manifest.txt
 !cmake/GenerateStrings.cmake
 !cmake/RunOpenXRCTS.cmake
 !cmake/SyncCompileCommands.cmake
+!clients/Qt/cmake/
+!clients/Qt/cmake/DetectQt6.cmake
 
 # --- IDE & Editors ---
 # VSCode

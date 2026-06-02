@@ -27,6 +27,21 @@ QString runtimeStatsIdentity(const RuntimeActivity& activity)
     return QString("%1|%2|%3").arg(activity.processId).arg(activity.transport, activity.clientName);
 }
 
+QString cleanedPath(QString path)
+{
+    path = path.trimmed();
+    if (path.size() >= 2)
+    {
+        const QChar first = path.front();
+        const QChar last = path.back();
+        if ((first == '"' && last == '"') || (first == '\'' && last == '\''))
+        {
+            path = path.mid(1, path.size() - 2).trimmed();
+        }
+    }
+    return path;
+}
+
 bool containsUsableDevice(const QList<AdbDevice>& devices, const QString& serial)
 {
     for (const AdbDevice& device : devices)
@@ -66,6 +81,8 @@ HomeModel::HomeModel(QObject* parent)
 {
     runtimeManifestPath_ =
         settings_.value("runtimeManifestPath", defaultRuntimeManifestPath()).toString();
+    preferInstalledRuntimeForLaunches_ =
+        settings_.value("preferInstalledRuntimeForLaunches", false).toBool();
     loadAll();
 
     pollTimer_.setInterval(1000);
@@ -155,7 +172,8 @@ QString HomeModel::runtimeManifestPath() const
 
 QString HomeModel::activeLaunchRuntimeManifestPath() const
 {
-    return runtimeManager_.activeLaunchRuntimeManifestPath(runtimeManifestPath_);
+    return runtimeManager_.activeLaunchRuntimeManifestPath(runtimeManifestPath_,
+                                                           preferInstalledRuntimeForLaunches_);
 }
 
 QString HomeModel::statusMessage() const
@@ -269,6 +287,11 @@ bool HomeModel::developerModeEnabled() const
     return settings_.value("developerModeEnabled", false).toBool();
 }
 
+bool HomeModel::preferInstalledRuntimeForLaunches() const
+{
+    return preferInstalledRuntimeForLaunches_;
+}
+
 bool HomeModel::isAppRunning(const LauncherApp& app) const
 {
     QProcess* process = launchedProcesses_.value(app.id(), nullptr);
@@ -288,9 +311,20 @@ void HomeModel::loadAll()
 
 void HomeModel::setRuntimeManifestPath(const QString& path)
 {
-    runtimeManifestPath_ = path;
+    runtimeManifestPath_ = cleanedPath(path);
+    preferInstalledRuntimeForLaunches_ = false;
     settings_.setValue("runtimeManifestPath", runtimeManifestPath_);
+    settings_.setValue("preferInstalledRuntimeForLaunches", preferInstalledRuntimeForLaunches_);
     setStatusMessage("Updated runtime manifest path.");
+    emit changed();
+}
+
+void HomeModel::setPreferInstalledRuntimeForLaunches(bool enabled)
+{
+    preferInstalledRuntimeForLaunches_ = enabled;
+    settings_.setValue("preferInstalledRuntimeForLaunches", preferInstalledRuntimeForLaunches_);
+    setStatusMessage(enabled ? "Launches will use the installed runtime manifest."
+                             : "Launches will use the selected runtime manifest.");
     emit changed();
 }
 
@@ -371,7 +405,9 @@ void HomeModel::installBundledRuntimeAndRegister()
         return;
     }
     runtimeManifestPath_ = installedManifestPath;
+    preferInstalledRuntimeForLaunches_ = true;
     settings_.setValue("runtimeManifestPath", runtimeManifestPath_);
+    settings_.setValue("preferInstalledRuntimeForLaunches", preferInstalledRuntimeForLaunches_);
     loadConfigFromDisk();
     refreshRuntimeInstallStatus();
     if (!runtimeManager_.registerRuntimeManifest(runtimeManifestPath_, &error))
@@ -387,7 +423,9 @@ void HomeModel::installBundledRuntimeAndRegister()
 void HomeModel::useInstalledRuntimeManifest()
 {
     runtimeManifestPath_ = runtimeInstallStatus_.installedManifestPath;
+    preferInstalledRuntimeForLaunches_ = true;
     settings_.setValue("runtimeManifestPath", runtimeManifestPath_);
+    settings_.setValue("preferInstalledRuntimeForLaunches", preferInstalledRuntimeForLaunches_);
     setStatusMessage("Selected the installed runtime manifest.");
     emit changed();
 }
@@ -406,6 +444,7 @@ void HomeModel::refreshRuntimeInstallStatus()
 
 void HomeModel::registerRuntime()
 {
+    runtimeManifestPath_ = cleanedPath(runtimeManifestPath_);
     settings_.setValue("runtimeManifestPath", runtimeManifestPath_);
     const bool wasRegistered = runtimeRegistrationStatus_.activeRuntimeExists;
     QString error;

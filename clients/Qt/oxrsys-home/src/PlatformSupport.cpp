@@ -347,17 +347,27 @@ bool revealInFileManager(const QString& path)
     }
 
     QFileInfo info(path);
+    QString directory = info.isDir() ? info.absoluteFilePath() : info.absolutePath();
+    QDir revealDirectory(directory);
+    while (!revealDirectory.exists())
+    {
+        const QString before = revealDirectory.absolutePath();
+        if (!revealDirectory.cdUp() || revealDirectory.absolutePath() == before)
+        {
+            return false;
+        }
+    }
+
     const QString target = info.exists()
         ? info.absoluteFilePath()
-        : QFileInfo(info.absolutePath()).absoluteFilePath();
+        : revealDirectory.absolutePath();
 
 #if defined(Q_OS_MACOS)
     return QProcess::startDetached("open", {"-R", target});
 #elif defined(Q_OS_WIN)
     return QProcess::startDetached("explorer.exe", {"/select," + QDir::toNativeSeparators(target)});
 #else
-    const QString directory = info.isDir() ? target : info.absolutePath();
-    return QDesktopServices::openUrl(QUrl::fromLocalFile(directory));
+    return QDesktopServices::openUrl(QUrl::fromLocalFile(revealDirectory.absolutePath()));
 #endif
 }
 
@@ -383,6 +393,7 @@ QStringList runtimeBuildDirectoryCandidates()
     QStringList candidates;
     const QString appDir = QCoreApplication::applicationDirPath();
     const QString cwd = QDir::currentPath();
+    candidates << QDir(appDir).filePath("../../../runtime");
     candidates << QDir(appDir).filePath("../../../../runtime");
     candidates << QDir(cwd).filePath("runtime");
     candidates << QDir(cwd).filePath("build/runtime");

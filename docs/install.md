@@ -34,6 +34,18 @@ Linux runtime and Qt frontend builds need equivalent distro packages for:
 - Qt 6 Core, Widgets, and Network
 - adb / Android Platform Tools for USB transport setup
 
+On Fedora with RPM Fusion FFmpeg packages installed, use the matching RPM Fusion
+development package:
+
+```bash
+sudo dnf install cmake ninja-build gcc-c++ pkgconf-pkg-config \
+  vulkan-headers vulkan-loader-devel qt6-qtbase-devel android-tools \
+  ffmpeg-devel
+```
+
+On Fedora systems that only use Fedora's free FFmpeg package set, use
+`ffmpeg-free-devel` instead of `ffmpeg-devel`.
+
 ## Android SDK And NDK
 
 Install Android command-line tools, then install the required packages with `sdkmanager`.

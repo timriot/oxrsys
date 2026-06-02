@@ -54,11 +54,13 @@ public:
     QString mainTransportSelection() const;
     TransportReadiness mainTransportReadiness() const;
     bool developerModeEnabled() const;
+    bool preferInstalledRuntimeForLaunches() const;
     bool isAppRunning(const LauncherApp& app) const;
 
 public slots:
     void loadAll();
     void setRuntimeManifestPath(const QString& path);
+    void setPreferInstalledRuntimeForLaunches(bool enabled);
     void setDeveloperModeEnabled(bool enabled);
     void setSelectedQuestUsbSerial(const QString& serial);
     void setSelectedLogAppId(const QString& appId);
@@ -103,6 +105,7 @@ private:
     QSettings settings_;
     QTimer pollTimer_;
     QString runtimeManifestPath_;
+    bool preferInstalledRuntimeForLaunches_ = false;
     ServerConfig serverConfig_;
     QString currentConfigText_;
     QDateTime lastKnownConfigModificationDate_;
