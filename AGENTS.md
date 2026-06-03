@@ -10,7 +10,8 @@ launching, runtime installation, runtime configuration, and runtime registration
 **Current state:** Metal/core runtime, Vulkan interop, Linux Vulkan/FFmpeg scaffolding,
 controller and hand input paths, loader-backed
 runtime tests, `XR_EXT_conformance_automation`, `XR_EXT_hand_interaction`, and `XR_EXT_debug_utils`
-are in place. Windows is scaffolded in layout/docs only for this pass. The Android VR client now feeds real `XR_EXT_hand_tracking` joints into the runtime,
+are in place. Windows is scaffolded in layout/docs only for this pass. The Android VR client now feeds
+real `XR_EXT_hand_tracking` joints into the runtime, gates controller poses with explicit active flags,
 supports WiFi UDP and USB ADB reverse TCP streaming, matches per-frame render poses for headset
 compositor reprojection, enables a first-pass dynamic `XR_FB_foveation` path when the headset supports it,
 and can request a build-configured display refresh rate. The visionOS
@@ -34,6 +35,8 @@ As of March 17, 2026, the pinned non-interactive OpenXR-CTS baseline is fully gr
 - **Always build and verify before declaring success** — run the macOS build + tests and/or Android build as appropriate before saying everything works
 - **Always update `README.md`, `AGENTS.md`, and the relevant files in `docs/` when making significant project changes**
 - Core C++ dependencies are fetched via CMake FetchContent; Qt, FFmpeg, Vulkan SDKs, and platform SDKs are system/toolchain dependencies.
+- Product versions are centralized in `config/OXRSysVersion.xcconfig`; do not hardcode
+  marketing versions or build numbers in CMake, Xcode, Gradle, or native client code.
 - All source code and documentation must be in English
 - Project-owned source code is licensed under MPL-2.0; preserve SPDX headers and keep third-party code under its upstream license.
 
@@ -61,6 +64,7 @@ Avoid duplicating the same guidance in multiple files. If commands, platform sta
 - Latency reports feed bounded pose prediction.
 - Headset clients must match `VIDEO_FLAG_RENDER_POSE` metadata to the decoded frame before projection submission.
 - Quest hand tracking depends on the Android manifest permission `com.oculus.permission.HAND_TRACKING` and the optional `oculus.software.handtracking` feature.
+- Streaming controller poses are valid only when `TRACKING_FLAG_LEFT_CONTROLLER_ACTIVE` or `TRACKING_FLAG_RIGHT_CONTROLLER_ACTIVE` is present; missing controller flags must not overwrite the last valid runtime pose.
 - The action system is profile-aware and must not regress to hard-forcing `KHR simple_controller`.
 - `xrLocateSpacesKHR` is accepted as an alias of the OpenXR 1.1 `xrLocateSpaces` entry point.
 - Reference spaces currently enumerate `VIEW`, `LOCAL`, `LOCAL_FLOOR`, and `STAGE`.
@@ -74,6 +78,7 @@ Avoid duplicating the same guidance in multiple files. If commands, platform sta
 oxrsys_runtime/
 ├── CMakeLists.txt
 ├── cmake/RunOpenXRCTS.cmake
+├── config/OXRSysVersion.xcconfig
 ├── runtime/
 ├── clients/
 │   ├── Android/
